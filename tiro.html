@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jogo de Tiro 3D</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+    #landscape-warning {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: black;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      font-size: 24px;
+      text-align: center;
+      display: none;
+    }
+    #start-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: black;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      box-sizing: border-box;
+      z-index: 10;
+    }
+    #start-screen h1 {
+      font-size: 48px;
+      margin: 0;
+    }
+    #start-screen ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #start-screen ul li {
+      margin: 10px 0;
+      font-size: 24px;
+      cursor: pointer;
+    }
+    #start-screen ul li:hover {
+      color: red;
+    }
+    #player-model {
+      position: relative;
+      width: 150px;
+      height: 300px;
+    }
+    #controls {
+      position: absolute;
+      bottom: 50px;
+      left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:active {
+      background-color: #0056b3;
+    }
+    #shoot-button {
+      position: absolute;
+      bottom: 50px;
+      right: 20px;
+    }
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      border: 2px solid red;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    #ammo-count {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 20px;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    #weapon-selector {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 150px;
+      height: 80px;
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      border: 2px solid white;
+      border-radius: 5px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    #weapon-selector div {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Aviso de modo paisagem -->
+<div id="landscape-warning">
+  Por favor, gire seu dispositivo para o modo <strong>horizontal (paisagem)</strong>.
+</div>
+
+<!-- Tela Inicial -->
+<div id="start-screen">
+  <div>
+    <h1>V.0 FIRE</h1>
+    <ul>
+      <li id="start-game">Começar</li>
+      <li id="settings">Configurações</li>
+      <li id="exit-game">Sair</li>
+    </ul>
+  </div>
+  <div id="player-model"></div>
+</div>
+
+<!-- Interface do Jogo -->
+<div id="controls">
+  <button id="forward">↑</button>
+  <button id="backward">↓</button>
+</div>
+<button id="shoot-button">ATIRAR</button>
+<div id="crosshair"></div>
+<div id="ammo-count">Munição: 30/30</div>
+<div id="weapon-selector">
+  <div>Arma Atual:</div>
+  <div id="current-weapon">Faca</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js "></script>
+<script>
+  // Configuração da cena
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  let gameStarted = false;
+
+  // Verificação de orientação
+  const landscapeWarning = document.getElementById('landscape-warning');
+  function checkOrientation() {
+    if (window.orientation === 90 || window.orientation === -90) {
+      landscapeWarning.style.display = 'none';
+    } else {
+      landscapeWarning.style.display = 'flex';
+    }
+  }
+  window.addEventListener('orientationchange', checkOrientation);
+  checkOrientation();
+
+  // Função para exibir a tela inicial
+  function showStartScreen() {
+    const startScreen = document.getElementById('start-screen');
+    startScreen.style.display = 'flex';
+
+    document.getElementById('start-game').addEventListener('click', () => {
+      startScreen.style.display = 'none';
+      gameStarted = true;
+    });
+
+    document.getElementById('settings').addEventListener('click', () => {
+      alert('Configurações ainda não implementadas!');
+    });
+
+    document.getElementById('exit-game').addEventListener('click', () => {
+      window.close();
+    });
+
+    const playerModelScene = new THREE.Scene();
+    const playerModelCamera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+    const playerModelRenderer = new THREE.WebGLRenderer({ alpha: true });
+    playerModelRenderer.setSize(150, 300);
+    document.getElementById('player-model').appendChild(playerModelRenderer.domElement);
+
+    const bodyGeometry = new THREE.BoxGeometry(0.5, 1, 0.5);
+    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    playerModelScene.add(body);
+
+    const headGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+    const headMaterial = new THREE.MeshStandardMaterial({ color: 0xfac9b0 });
+    const head = new THREE.Mesh(headGeometry, headMaterial);
+    head.position.set(0, 0.8, 0);
+    playerModelScene.add(head);
+
+    const armGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8);
+    const armMaterial = new THREE.MeshStandardMaterial({ color: 0xffa500 });
+    const leftArm = new THREE.Mesh(armGeometry, armMaterial);
+    leftArm.position.set(-0.35, 0.3, 0);
+    playerModelScene.add(leftArm);
+    const rightArm = new THREE.Mesh(armGeometry, armMaterial);
+    rightArm.position.set(0.35, 0.3, 0);
+    playerModelScene.add(rightArm);
+
+    const legGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.5, 8);
+    const legMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+    const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+    leftLeg.position.set(-0.2, -0.5, 0);
+    playerModelScene.add(leftLeg);
+    const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+    rightLeg.position.set(0.2, -0.5, 0);
+    playerModelScene.add(rightLeg);
+
+    playerModelCamera.position.z = 2;
+    playerModelCamera.lookAt(new THREE.Vector3(0, 0.5, 0));
+
+    function animatePlayerModel() {
+      requestAnimationFrame(animatePlayerModel);
+      playerModelRenderer.render(playerModelScene, playerModelCamera);
+    }
+
+    animatePlayerModel();
+  }
+
+  showStartScreen();
+
+  // Céu
+  scene.background = new THREE.Color(0x87CEEB);
+
+  // Luz
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(5, 5, 5).normalize();
+  scene.add(light);
+
+  // Chão
+  const floorGeometry = new THREE.PlaneGeometry(40, 40);
+  const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+  const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+  floor.rotation.x = -Math.PI / 2;
+  scene.add(floor);
+
+  // Jogador
+  const player = new THREE.Object3D();
+  player.position.set(0, 1.6, 0);
+  scene.add(player);
+
+  // Arma visual
+  let weaponMesh = null;
+  let currentWeapon = 'knife';
+
+  function updateWeapon() {
+    if (weaponMesh) {
+      camera.remove(weaponMesh);
+    }
+
+    let geometry, color;
+    if (currentWeapon === 'knife') {
+      geometry = new THREE.BoxGeometry(0.1, 0.1, 0.6);
+      color = 0x228B22;
+    } else {
+      geometry = new THREE.BoxGeometry(0.2, 0.1, 0.5);
+      color = 0x333333;
+    }
+
+    const material = new THREE.MeshStandardMaterial({ color });
+    weaponMesh = new THREE.Mesh(geometry, material);
+    weaponMesh.position.set(0.3, -0.3, -0.5);
+    camera.add(weaponMesh);
+  }
+
+  document.getElementById('weapon-selector').addEventListener('click', () => {
+    if (currentWeapon === 'knife') {
+      currentWeapon = 'gun';
+      document.getElementById('current-weapon').innerText = 'Arma';
+    } else {
+      currentWeapon = 'knife';
+      document.getElementById('current-weapon').innerText = 'Faca';
+    }
+    updateWeapon();
+  });
+
+  // Inimigos
+  const targets = [];
+  const targetBodyGeometry = new THREE.BoxGeometry(0.8, 2.5, 0.8);
+  const targetHeadGeometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
+  const targetArmGeometry = new THREE.CylinderGeometry(0.15, 0.15, 1.2, 8);
+  const targetMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+
+  for (let i = 0; i < 5; i++) {
+    const targetBody = new THREE.Mesh(targetBodyGeometry, targetMaterial);
+    targetBody.position.set(Math.random() * 20 - 10, 1.25, Math.random() * 20 - 10);
+    targetBody.health = 5;
+
+    const targetHead = new THREE.Mesh(targetHeadGeometry, targetMaterial);
+    targetHead.position.set(0, 1.5, 0);
+    targetBody.add(targetHead);
+
+    const leftArm = new THREE.Mesh(targetArmGeometry, targetMaterial);
+    leftArm.position.set(-0.5, 0.5, 0);
+    targetBody.add(leftArm);
+
+    const rightArm = new THREE.Mesh(targetArmGeometry, targetMaterial);
+    rightArm.position.set(0.5, 0.5, 0);
+    targetBody.add(rightArm);
+
+    scene.add(targetBody);
+    targets.push(targetBody);
+  }
+
+  // Movimento
+  const speed = 0.1;
+  let forward = false;
+  let backward = false;
+
+  // Controle da câmera
+  let isDragging = false;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let cameraAngleY = 0;
+  let cameraAngleX = 0;
+  const maxVerticalAngle = Math.PI / 4;
+  const sensitivity = 0.005;
+
+  // Munição
+  let ammo = 30;
+  const maxAmmo = 30;
+  let reloading = false;
+  const reloadTime = 3000;
+
+  function updateAmmoDisplay() {
+    document.getElementById('ammo-count').innerText = `Munição: ${ammo}/${maxAmmo}`;
+  }
+
+  // Balas
+  const bullets = [];
+  const bulletSpeed = 0.5;
+
+  function animate() {
+    requestAnimationFrame(animate);
+    if (!gameStarted) return;
+
+    const direction = new THREE.Vector3(0, 0, -1);
+    direction.applyEuler(camera.rotation);
+    direction.y = 0;
+    direction.normalize();
+
+    if (forward) player.position.addScaledVector(direction, speed);
+    if (backward) player.position.addScaledVector(direction, -speed);
+
+    camera.position.copy(player.position);
+    camera.position.y += 1.6;
+
+    // Colisão com faca
+    if (currentWeapon === 'knife') {
+      for (let i = 0; i < targets.length; i++) {
+        const target = targets[i];
+        if (target && player.position.distanceTo(target.position) < 1.5) {
+          scene.remove(target);
+          targets.splice(i, 1);
+          break;
+        }
+      }
+    }
+
+    // Balas
+    for (let i = 0; i < bullets.length; i++) {
+      const bullet = bullets[i];
+      bullet.position.add(bullet.userData.direction.clone().multiplyScalar(bulletSpeed));
+      if (bullet.position.distanceTo(camera.position) > 50) {
+        scene.remove(bullet);
+        bullets.splice(i, 1);
+        i--;
+        continue;
+      }
+
+      for (let j = 0; j < targets.length; j++) {
+        const target = targets[j];
+        if (target && bullet.position.distanceTo(target.position) < 1) {
+          target.health--;
+          if (target.health <= 0) {
+            scene.remove(target);
+            targets.splice(j, 1);
+          }
+          scene.remove(bullet);
+          bullets.splice(i, 1);
+          i--;
+          break;
+        }
+      }
+    }
+
+    renderer.render(scene, camera);
+  }
+
+  // Eventos de toque
+  renderer.domElement.addEventListener('touchstart', (event) => {
+    event.preventDefault();
+    isDragging = true;
+    const touch = event.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+  });
+
+  renderer.domElement.addEventListener('touchmove', (event) => {
+    event.preventDefault();
+    if (!isDragging || !gameStarted) return;
+    const touch = event.touches[0];
+    const deltaX = (touch.clientX - touchStartX) * sensitivity;
+    const deltaY = (touch.clientY - touchStartY) * sensitivity;
+
+    cameraAngleY -= deltaX;
+    cameraAngleX -= deltaY;
+    cameraAngleX = Math.max(-maxVerticalAngle, Math.min(maxVerticalAngle, cameraAngleX));
+
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = cameraAngleY;
+    camera.rotation.x = cameraAngleX;
+
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+  });
+
+  renderer.domElement.addEventListener('touchend', () => {
+    isDragging = false;
+  });
+
+  document.getElementById('forward').addEventListener('touchstart', () => { forward = true; });
+  document.getElementById('forward').addEventListener('touchend', () => { forward = false; });
+  document.getElementById('backward').addEventListener('touchstart', () => { backward = true; });
+  document.getElementById('backward').addEventListener('touchend', () => { backward = false; });
+
+  // Botão shoot
+  document.getElementById('shoot-button').addEventListener('click', () => {
+    if (!gameStarted || reloading || currentWeapon !== 'gun' || ammo <= 0) return;
+
+    const bulletGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+    const bulletMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+    const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+    bullet.position.copy(camera.position);
+
+    const direction = new THREE.Vector3(0, 0, -1);
+    direction.applyQuaternion(camera.quaternion);
+    bullet.userData = { direction };
+
+    scene.add(bullet);
+    bullets.push(bullet);
+
+    ammo--;
+    updateAmmoDisplay();
+
+    if (ammo === 0) {
+      reloading = true;
+      setTimeout(() => {
+        ammo = maxAmmo;
+        reloading = false;
+        updateAmmoDisplay();
+      }, reloadTime);
+    }
+  });
+
+  updateWeapon();
+  updateAmmoDisplay();
+  animate();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+</script>
+</body>
+</html>
